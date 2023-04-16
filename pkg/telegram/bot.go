@@ -2,18 +2,27 @@ package telegram
 
 import (
 	"log"
-	"github.com/sirupsen/logrus"
+	"os"
+	"strconv"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/sirupsen/logrus"
 )
 
 type Bot struct {
-	bot            *tgbotapi.BotAPI
-	groups         map[string]int64
+	bot           *tgbotapi.BotAPI
+	groups        map[string]int64
+	admin_name    string
+	admin_chat_id int64
 }
 
 func NewBot(bot *tgbotapi.BotAPI) *Bot {
 	var groups = make(map[string]int64, 0)
-	return &Bot{bot: bot, groups: groups}
+	admin_name := os.Getenv("ADMIN_NAME")
+	admin_chat_id, err := strconv.ParseInt(os.Getenv("ADMIN_CHAT_ID"), int(10), int(64))
+	if err != nil {
+		logrus.Errorf("error while loading env variable ADMIN_CHAT_ID:", err.Error())
+	}
+	return &Bot{bot: bot, groups: groups, admin_name: admin_name, admin_chat_id: admin_chat_id}
 }
 
 func (b *Bot) Start() error {
@@ -28,7 +37,7 @@ func (b *Bot) Start() error {
 
 func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 	for update := range updates {
-		if update.CallbackQuery != nil && update.CallbackQuery.From.UserName == "boris_kosarev" {
+		if update.CallbackQuery != nil && update.CallbackQuery.From.UserName == b.admin_name {
 			b.updateCallbackQueryHandler(update.CallbackQuery, updates)
 			continue
 		}
@@ -40,13 +49,13 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 		chat := update.Message.Chat
 		if chat.IsSuperGroup() || chat.IsGroup() {
 			config := tgbotapi.ChatConfigWithUser{
-				ChatID: chat.ID,
-				UserID: int64(202468320),
+				ChatID:             chat.ID,
+				UserID:             b.admin_chat_id,
 				SuperGroupUsername: "",
 			}
 			memberConfig := tgbotapi.GetChatMemberConfig{config}
 			if member, err := b.bot.GetChatMember(memberConfig); err == nil {
-				if member.Status != "left" && member.Status != ""  && member.Status != "kicked"{
+				if member.Status != "left" && member.Status != "" && member.Status != "kicked" {
 					if _, ok := b.groups[chat.UserName]; !ok {
 						b.groups[chat.UserName] = chat.ID
 						logrus.Printf("добавлен id группы: %d", chat.ID)
@@ -59,12 +68,12 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 			}
 		}
 
-		if update.Message.IsCommand() && update.Message.From.UserName == "boris_kosarev" {
+		if update.Message.IsCommand() && update.Message.From.UserName == b.admin_name {
 			b.handleCommand(update.Message)
 			continue
 		}
 
-		if update.Message.From.UserName != "boris_kosarev" && update.Message.Chat.IsPrivate() {
+		if update.Message.From.UserName != b.admin_name && update.Message.Chat.IsPrivate() {
 			go b.handleMessage(update.Message)
 		}
 	}

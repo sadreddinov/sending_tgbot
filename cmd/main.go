@@ -20,6 +20,5 @@ func main() {
 	telegrambot := telegram.NewBot(bot)
 	if err := telegrambot.Start();err != nil {
 		logrus.Fatalf("error starting bot: %s", err.Error())
-	} 
-	
+	} 	
 }

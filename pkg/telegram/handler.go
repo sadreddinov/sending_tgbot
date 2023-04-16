@@ -1,8 +1,8 @@
 package telegram
 
 import (
-	"github.com/sirupsen/logrus"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/sirupsen/logrus"
 )
 
 func (b *Bot) handleMessage(message *tgbotapi.Message) {
@@ -36,18 +36,18 @@ func (b *Bot) updateCallbackQueryHandler(update *tgbotapi.CallbackQuery, updates
 		b.bot.Send(msg)
 		var msgID int
 		for update := range updates {
-			if update.Message != nil && update.Message.From.UserName == "boris_kosarev" {
+			if update.Message != nil && update.Message.From.UserName == b.admin_name {
 				msgID = update.Message.MessageID
 				break
 			}
-			if update.Message.From.UserName != "boris_kosarev" && update.Message.Chat.IsPrivate() {
+			if update.Message.From.UserName != b.admin_name && update.Message.Chat.IsPrivate() {
 				go b.handleMessage(update.Message)
 			}
 		}
 		for _, v := range b.groups {
 			config := tgbotapi.ChatConfigWithUser{
-				ChatID: v,
-				UserID: int64(202468320),
+				ChatID:             v,
+				UserID:             b.admin_chat_id,
 				SuperGroupUsername: "",
 			}
 			memberConfig := tgbotapi.GetChatMemberConfig{config}
@@ -56,7 +56,7 @@ func (b *Bot) updateCallbackQueryHandler(update *tgbotapi.CallbackQuery, updates
 					go b.sending(v, update.Message.Chat.ID, msgID)
 				}
 			}
-			
+
 		}
 		msg = tgbotapi.NewMessage(update.Message.Chat.ID, "рассылка успешна")
 		b.bot.Send(msg)
